@@ -25,7 +25,7 @@ export default function Chat() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [...currentMessages, { role: 'user', content: userMessage }],
+          messages: [...currentMessages, { role: 'user' as const, content: userMessage } as Message],
         }),
       })
 
@@ -68,14 +68,16 @@ export default function Chat() {
           }
         }
         
-        return [...prev, { role: 'assistant' as const, content: assistantResponse }]
+        const newMessage: Message = { role: 'assistant', content: assistantResponse }
+        return [...prev, newMessage]
       })
     } catch (error) {
       setIsTyping(false)
-      setMessages((prev: Message[]) => [...prev, {
-        role: 'assistant' as const,
+      const errorMessage: Message = {
+        role: 'assistant',
         content: 'Ups, algo salió mal. Probá de nuevo.'
-      }])
+      }
+      setMessages((prev: Message[]) => [...prev, errorMessage])
     }
   }
 
@@ -95,7 +97,8 @@ export default function Chat() {
     setInput('')
     
     setMessages((prev: Message[]) => {
-      const updatedMessages: Message[] = [...prev, { role: 'user' as const, content: userMessage }]
+      const newMessage: Message = { role: 'user', content: userMessage }
+      const updatedMessages: Message[] = [...prev, newMessage]
       sendMessageToAPI(userMessage, prev)
       return updatedMessages
     })
@@ -111,7 +114,8 @@ export default function Chat() {
     }
     
     // Actualizar estado primero
-    const updatedMessages: Message[] = [...messages, { role: 'user' as const, content: suggestion }]
+    const newMessage: Message = { role: 'user', content: suggestion }
+    const updatedMessages: Message[] = [...messages, newMessage]
     setMessages(updatedMessages)
     
     // Llamar a la API con el estado actualizado
@@ -128,7 +132,8 @@ export default function Chat() {
     }
     
     // Actualizar estado primero
-    const updatedMessages: Message[] = [...messages, { role: 'user' as const, content: cardAction }]
+    const newMessage: Message = { role: 'user', content: cardAction }
+    const updatedMessages: Message[] = [...messages, newMessage]
     setMessages(updatedMessages)
     
     // Llamar a la API con el estado actualizado
