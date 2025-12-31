@@ -48,7 +48,7 @@ export default function Chat() {
       // Verificar que no sea un mensaje duplicado antes de agregarlo
       setMessages((prev: Message[]) => {
         // Buscar todos los mensajes del asistente (no solo el último)
-        const assistantMessages = prev.filter(m => m.role === 'assistant')
+        const assistantMessages = (prev || []).filter((m: Message) => m?.role === 'assistant')
         
         // Verificar duplicado exacto
         const isExactDuplicate = assistantMessages.some((m: Message) => m?.content === assistantResponse)
@@ -60,7 +60,7 @@ export default function Chat() {
         const normalizedNew = (assistantResponse || '').toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
         const wordsNew = normalizedNew.split(' ').filter((w: string) => w.length > 3)
         
-        for (const assistantMsg of assistantMessages.slice(-3)) { // Revisar últimos 3 mensajes
+        for (const assistantMsg of (assistantMessages || []).slice(-3)) { // Revisar últimos 3 mensajes
           const msgContent = assistantMsg?.content || ''
           const normalizedLast = msgContent.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
           const wordsLast = normalizedLast.split(' ').filter((w: string) => w.length > 3)
@@ -115,7 +115,7 @@ export default function Chat() {
     if (isTyping || !suggestion || suggestion.trim().length === 0) return
     
     // Verificar que no se haya enviado este mensaje recientemente
-    const lastUserMessage = messages.filter((m: Message) => m.role === 'user').pop()
+    const lastUserMessage = (messages || []).filter((m: Message) => m?.role === 'user').pop()
     if (lastUserMessage?.content === suggestion) {
       return // Ya se envió este mensaje
     }
@@ -133,7 +133,7 @@ export default function Chat() {
     if (isTyping || !cardAction || cardAction.trim().length === 0) return
     
     // Verificar que no se haya enviado este mensaje recientemente
-    const lastUserMessage = messages.filter((m: Message) => m.role === 'user').pop()
+    const lastUserMessage = (messages || []).filter((m: Message) => m?.role === 'user').pop()
     if (lastUserMessage?.content === cardAction) {
       return // Ya se envió este mensaje
     }
@@ -215,7 +215,7 @@ export default function Chat() {
     }
   }
 
-  const isEmpty = messages.length === 0
+  const isEmpty = (messages?.length || 0) === 0
 
   return (
     <div className="flex flex-col h-[700px] max-w-3xl mx-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 overflow-hidden">
@@ -272,8 +272,8 @@ export default function Chat() {
           </div>
         ) : (
           <>
-            {messages.map((message: Message, index: number) => {
-              const parsed = message.role === 'assistant' && message.content 
+            {(messages || []).map((message: Message, index: number) => {
+              const parsed: any = message.role === 'assistant' && message.content 
                 ? parseMessageWithCards(message.content) 
                 : null
               
@@ -300,9 +300,9 @@ export default function Chat() {
                       )}
                       
                       {/* Cards premium clicables - Estilo blanco o zinc-900 con bordes definidos */}
-                      {parsed?.cards && Array.isArray(parsed.cards) && parsed.cards.length > 0 && (
+                      {(parsed?.cards || []).length > 0 && (
                       <div className="grid grid-cols-1 gap-3">
-                        {parsed.cards.map((card: { title: string; action: string; fullText: string }, cardIndex: number) => {
+                        {(parsed?.cards || []).map((card: { title: string; action: string; fullText: string }, cardIndex: number) => {
                           if (!card || !card.action || !card.title) return null
                           
                           return (
