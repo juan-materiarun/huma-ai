@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -33,13 +33,17 @@ export default function Chat() {
         throw new Error('Error en la respuesta')
       }
 
-      const data = await response.json()
+      const data: any = await response.json()
       
       // Simular tiempo de escritura (2-3 segundos)
       await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 2000))
       
       setIsTyping(false)
-      const assistantResponse = data.message || data.content
+      const assistantResponse: string = data?.message || data?.content || ''
+      
+      if (!assistantResponse || assistantResponse.trim().length === 0) {
+        throw new Error('Respuesta vacía de la API')
+      }
       
       // Verificar que no sea un mensaje duplicado antes de agregarlo
       setMessages((prev: Message[]) => {
@@ -47,20 +51,21 @@ export default function Chat() {
         const assistantMessages = prev.filter(m => m.role === 'assistant')
         
         // Verificar duplicado exacto
-        const isExactDuplicate = assistantMessages.some(m => m.content === assistantResponse)
+        const isExactDuplicate = assistantMessages.some((m: Message) => m?.content === assistantResponse)
         if (isExactDuplicate) {
           return prev
         }
         
         // Verificar similitud con TODOS los mensajes del asistente (no solo el último)
-        const normalizedNew = assistantResponse.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
+        const normalizedNew = (assistantResponse || '').toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
         const wordsNew = normalizedNew.split(' ').filter((w: string) => w.length > 3)
         
         for (const assistantMsg of assistantMessages.slice(-3)) { // Revisar últimos 3 mensajes
-          const normalizedLast = assistantMsg.content.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
+          const msgContent = assistantMsg?.content || ''
+          const normalizedLast = msgContent.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
           const wordsLast = normalizedLast.split(' ').filter((w: string) => w.length > 3)
           const commonWords = wordsNew.filter((w: string) => wordsLast.includes(w))
-          const similarity = commonWords.length / Math.max(wordsNew.length, wordsLast.length)
+          const similarity = commonWords.length / Math.max(wordsNew.length, wordsLast.length || 1)
           
           // Si es más del 70% similar, no agregar (bajamos el threshold)
           if (similarity > 0.7) {
@@ -71,7 +76,7 @@ export default function Chat() {
         const newMessage: Message = { role: 'assistant', content: assistantResponse }
         return [...prev, newMessage]
       })
-    } catch (error) {
+    } catch (error: any) {
       setIsTyping(false)
       const errorMessage: Message = {
         role: 'assistant',
@@ -81,13 +86,15 @@ export default function Chat() {
     }
   }
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [])
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, isTyping])
+  }, [messages, isTyping, scrollToBottom])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -105,43 +112,45 @@ export default function Chat() {
   }
 
   const handleSuggestionClick = async (suggestion: string) => {
-    if (isTyping) return
+    if (isTyping || !suggestion || suggestion.trim().length === 0) return
     
     // Verificar que no se haya enviado este mensaje recientemente
-    const lastUserMessage = messages.filter(m => m.role === 'user').pop()
+    const lastUserMessage = messages.filter((m: Message) => m.role === 'user').pop()
     if (lastUserMessage?.content === suggestion) {
       return // Ya se envió este mensaje
     }
     
     // Actualizar estado primero
-    const newMessage: Message = { role: 'user', content: suggestion }
+    const newMessage: Message = { role: 'user', content: suggestion.trim() }
     const updatedMessages: Message[] = [...messages, newMessage]
     setMessages(updatedMessages)
     
     // Llamar a la API con el estado actualizado
-    await sendMessageToAPI(suggestion, messages)
+    await sendMessageToAPI(suggestion.trim(), messages)
   }
 
   const handleCardClick = async (cardAction: string) => {
-    if (isTyping) return
+    if (isTyping || !cardAction || cardAction.trim().length === 0) return
     
     // Verificar que no se haya enviado este mensaje recientemente
-    const lastUserMessage = messages.filter(m => m.role === 'user').pop()
+    const lastUserMessage = messages.filter((m: Message) => m.role === 'user').pop()
     if (lastUserMessage?.content === cardAction) {
       return // Ya se envió este mensaje
     }
     
     // Actualizar estado primero
-    const newMessage: Message = { role: 'user', content: cardAction }
+    const newMessage: Message = { role: 'user', content: cardAction.trim() }
     const updatedMessages: Message[] = [...messages, newMessage]
     setMessages(updatedMessages)
     
     // Llamar a la API con el estado actualizado
-    await sendMessageToAPI(cardAction, messages)
+    await sendMessageToAPI(cardAction.trim(), messages)
   }
 
   // Función para parsear cards del formato [CARD_X]: Título | Acción
-  const parseMessageWithCards = (content: string) => {
+  const parseMessageWithCards = (content: string): 
+    | { hasCards: true; cleanedText: string; cards: Array<{ title: string; action: string; fullText: string }> }
+    | { hasCards: false; text: string } => {
     // Regex mejorado para encontrar todas las cards: [CARD_X]: Título | Acción
     // Maneja variaciones con o sin espacios, con guiones, etc.
     const cardRegex = /\[CARD[_\s]*(\d+)\]:\s*([^|\n\-]+?)\s*[|\-]\s*([^\n]+)/gi
@@ -263,24 +272,26 @@ export default function Chat() {
           </div>
         ) : (
           <>
-            {messages.map((message, index) => {
-              const parsed = message.role === 'assistant' ? parseMessageWithCards(message.content) : null
+            {messages.map((message: Message, index: number) => {
+              const parsed = message.role === 'assistant' && message.content 
+                ? parseMessageWithCards(message.content) 
+                : null
               
               return (
                 <div
-                  key={index}
+                  key={`message-${index}`}
                   className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
                 >
                   {message.role === 'user' ? (
                     <div className="max-w-[75%] rounded-2xl px-4 py-2.5 backdrop-blur-md bg-blue-500/90 text-white shadow-lg shadow-blue-500/20">
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                        {message.content}
+                        {message?.content || ''}
                       </p>
                     </div>
                   ) : parsed?.hasCards ? (
                     <div className="max-w-[85%] space-y-4">
                       {/* Mensaje limpio sin tags [CARD_X] */}
-                      {parsed.cleanedText && (
+                      {parsed?.cleanedText && (
                         <div className="bg-white/60 backdrop-blur-md rounded-2xl px-4 py-2.5 border border-gray-200/50 shadow-sm">
                           <p className="text-sm leading-relaxed whitespace-pre-wrap">
                             {parsed.cleanedText}
@@ -289,12 +300,16 @@ export default function Chat() {
                       )}
                       
                       {/* Cards premium clicables - Estilo blanco o zinc-900 con bordes definidos */}
+                      {parsed?.cards && Array.isArray(parsed.cards) && parsed.cards.length > 0 && (
                       <div className="grid grid-cols-1 gap-3">
-                        {parsed.cards.map((card, cardIndex) => (
+                        {parsed.cards.map((card: { title: string; action: string; fullText: string }, cardIndex: number) => {
+                          if (!card || !card.action || !card.title) return null
+                          
+                          return (
                           <button
-                            key={cardIndex}
+                            key={`card-${cardIndex}`}
                             onClick={() => handleCardClick(card.action)}
-                            disabled={isTyping}
+                            disabled={isTyping || !card.action}
                             className="group relative p-4 bg-white border-2 border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <div className="flex items-start gap-3">
@@ -327,13 +342,15 @@ export default function Chat() {
                               </div>
                             </div>
                           </button>
-                        ))}
+                          )
+                        })}
                       </div>
+                      )}
                     </div>
                   ) : (
                     <div className="max-w-[75%] rounded-2xl px-4 py-2.5 backdrop-blur-md bg-white/60 text-gray-900 border border-gray-200/50 shadow-sm">
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                        {message.content}
+                        {message?.content || ''}
                       </p>
                     </div>
                   )}
