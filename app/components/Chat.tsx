@@ -294,15 +294,19 @@ export default function Chat() {
                       {parsed?.cleanedText && (
                         <div className="bg-white/60 backdrop-blur-md rounded-2xl px-4 py-2.5 border border-gray-200/50 shadow-sm">
                           <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                            {parsed.cleanedText}
+                            {parsed?.cleanedText || ''}
                           </p>
                         </div>
                       )}
                       
                       {/* Cards premium clicables - Estilo blanco o zinc-900 con bordes definidos */}
-                      {(parsed?.cards || []).length > 0 && (
-                      <div className="grid grid-cols-1 gap-3">
-                        {(parsed?.cards || []).map((card: { title: string; action: string; fullText: string }, cardIndex: number) => {
+                      {(() => {
+                        const cardsArray: Array<{ title: string; action: string; fullText: string }> = (parsed as any)?.cards || []
+                        if (!cardsArray || cardsArray.length === 0) return null
+                        
+                        return (
+                          <div className="grid grid-cols-1 gap-3">
+                            {cardsArray.map((card: { title: string; action: string; fullText: string }, cardIndex: number) => {
                           if (!card || !card.action || !card.title) return null
                           
                           return (
@@ -344,8 +348,9 @@ export default function Chat() {
                           </button>
                           )
                         })}
-                      </div>
-                      )}
+                          </div>
+                        )
+                      })()}
                     </div>
                   ) : (
                     <div className="max-w-[75%] rounded-2xl px-4 py-2.5 backdrop-blur-md bg-white/60 text-gray-900 border border-gray-200/50 shadow-sm">
