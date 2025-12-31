@@ -42,7 +42,7 @@ export default function Chat() {
       const assistantResponse = data.message || data.content
       
       // Verificar que no sea un mensaje duplicado antes de agregarlo
-      setMessages(prev => {
+      setMessages((prev: Message[]) => {
         // Buscar todos los mensajes del asistente (no solo el último)
         const assistantMessages = prev.filter(m => m.role === 'assistant')
         
@@ -68,12 +68,12 @@ export default function Chat() {
           }
         }
         
-        return [...prev, { role: 'assistant', content: assistantResponse }]
+        return [...prev, { role: 'assistant' as const, content: assistantResponse }]
       })
     } catch (error) {
       setIsTyping(false)
-      setMessages(prev => [...prev, {
-        role: 'assistant',
+      setMessages((prev: Message[]) => [...prev, {
+        role: 'assistant' as const,
         content: 'Ups, algo salió mal. Probá de nuevo.'
       }])
     }
@@ -94,8 +94,8 @@ export default function Chat() {
     const userMessage = input.trim()
     setInput('')
     
-    setMessages(prev => {
-      const updatedMessages = [...prev, { role: 'user', content: userMessage }]
+    setMessages((prev: Message[]) => {
+      const updatedMessages: Message[] = [...prev, { role: 'user' as const, content: userMessage }]
       sendMessageToAPI(userMessage, prev)
       return updatedMessages
     })
@@ -111,7 +111,7 @@ export default function Chat() {
     }
     
     // Actualizar estado primero
-    const updatedMessages = [...messages, { role: 'user' as const, content: suggestion }]
+    const updatedMessages: Message[] = [...messages, { role: 'user' as const, content: suggestion }]
     setMessages(updatedMessages)
     
     // Llamar a la API con el estado actualizado
@@ -128,7 +128,7 @@ export default function Chat() {
     }
     
     // Actualizar estado primero
-    const updatedMessages = [...messages, { role: 'user' as const, content: cardAction }]
+    const updatedMessages: Message[] = [...messages, { role: 'user' as const, content: cardAction }]
     setMessages(updatedMessages)
     
     // Llamar a la API con el estado actualizado
